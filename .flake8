@@ -1,0 +1,3 @@
+[flake8]
+exclude = __pycache__,.pytest_cache,.venv,venv,v6_kmeans_py.egg-info
+max-line-length = 80
