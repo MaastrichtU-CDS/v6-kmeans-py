@@ -110,7 +110,6 @@ venv.bak/
 docker_hub.sh
 
 # Input and output
-*.csv
 v6_kmeans_py/local/input
 v6_kmeans_py/local/output
 v6_kmeans_py/local/token

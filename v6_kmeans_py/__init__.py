@@ -131,7 +131,9 @@ def master(
     info('Master algorithm complete')
     info(f'Result: {centroids}')
 
-    return centroids
+    return {
+        'centroids': centroids
+    }
 
 
 def RPC_initialize_centroids_partial(
