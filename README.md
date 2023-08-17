@@ -6,7 +6,8 @@ architecture.
 ## Input data
 
 The data nodes should hold a `csv` with variables following the same common 
-data model. For now, the algorithm can handle only numerical variables.
+data model. We split the [iris dataset](https://archive.ics.uci.edu/dataset/53/iris)
+and provide as an example to test the code.
 
 ## Using the algorithm
 
@@ -26,7 +27,13 @@ input_ = {
     'method': 'master',
     'master': True,
     'kwargs': {
-        'org_ids': [2, 3]  # organisations to run kmeans
+        'org_ids': [2, 3],  # organisations to run kmeans
+        'k': 3,             # number of clusters to compute
+        'epsilon': 0.05,    # threshold for convergence criterion
+        'max_iter': 300,    # maximum number of iterations to perform
+        'columns': [        # columns to be used for clustering
+            'sepal_length', 'sepal_width', 'petal_length', 'petal_width'
+        ]
     }
 }
 

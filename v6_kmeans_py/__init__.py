@@ -1,27 +1,26 @@
 # -*- coding: utf-8 -*-
 
-""" Federated algorithm
+""" Federated algorithm for kmeans
 
-This file contains all algorithm pieces that are executed on the nodes.
-It is important to note that the master method is also triggered on a
-node just the same as any other method.
-
-When a return statement is reached the result is sent to the central server.
+We follow the approach introduced by Stallmann and Wilbik (2022),
+but implementing it for classical kmeans.
 """
 import time
+
 import numpy as np
 import pandas as pd
 
 from scipy.spatial import distance
 from sklearn.cluster import KMeans
 from vantage6.tools.util import info
+from v6_kmeans_py.helper import coordinate_task
 
 
 def master(
-        client, data: pd.DataFrame, k: int, columns: list = None,
-        org_ids: list = None
+        client, data: pd.DataFrame, k: int, epsilon: int = 0.05,
+        max_iter: int = 300, columns: list = None, org_ids: list = None
 ) -> dict:
-    """ Master algorithm
+    """ Master algorithm that coordinates the tasks and performs averaging
 
     Parameters
     ----------
@@ -31,6 +30,10 @@ def master(
         DataFrame with the input data
     k
         Number of clusters to be computed
+    epsilon
+        Threshold for convergence criterion
+    max_iter
+        Maximum number of iterations to perform
     columns
         Columns to be used for clustering
     org_ids
@@ -42,41 +45,32 @@ def master(
         Dictionary with the final averaged result
     """
 
-    # Get all organization ids that are within the collaboration,
-    # if they were not provided
-    # FlaskIO knows the collaboration to which the container belongs
-    # as this is encoded in the JWT (Bearer token)
+    # Get all organization ids that are within the collaboration or
+    # use the provided ones
     info('Collecting participating organizations')
     organizations = client.get_organizations_in_my_collaboration()
     ids = [organization.get('id') for organization in organizations
            if not org_ids or organization.get('id') in org_ids]
 
-    # Initialise K global cluster centres, for now start with k random points
-    # from a random data node
+    # Initialise k global cluster centres, for now start with k random points
+    # drawn from a random data node
+    # TODO: improve centroids initialisation
     info('Initializing k global cluster centres')
     input_ = {
         'method': 'initialize_centroids_partial',
         'kwargs': {'k': k, 'columns': columns}
     }
-    task = client.create_new_task(
-        input_=input_,
-        organization_ids=[np.random.choice(ids)]
-    )
-    task_id = task.get('id')
-    task = client.get_task(task_id)
-    while not task.get('complete'):
-        task = client.get_task(task_id)
-        info('Waiting for results')
-        time.sleep(1)
-    results = client.get_results(task_id=task.get('id'))
-    centroids = results[0]['initial_centroids']
+    results = coordinate_task(client, input_, [np.random.choice(ids)])
+    centroids = results[0]
 
-    # Loop until convergence
+    # The next steps are run until convergence is achieved or the maximum
+    # number of iterations reached. In order to evaluate convergence,
+    # we compute the difference of the centroids between two steps. We
+    # initialise the `change` variable to something higher than the threshold
+    # epsilon.
     iteration = 1
-    change = 1.0
-    epsilon = 0.05
-
-    while change > epsilon:
+    change = 2*epsilon
+    while (change > epsilon) and (iteration < max_iter):
         # The input for the partial algorithm
         info('Defining input parameters')
         input_ = {
@@ -84,48 +78,35 @@ def master(
             'kwargs': {'k': k, 'centroids': centroids, 'columns': columns}
         }
 
-        # Create a new task for the desired organizations
-        info('Dispatching node-tasks')
-        task = client.create_new_task(
-            input_=input_,
-            organization_ids=ids
-        )
+        # Send partial task and collect results
+        results = coordinate_task(client, input_, ids)
 
-        # Wait for nodes to return results
-        info('Waiting for results')
-        task_id = task.get('id')
-        task = client.get_task(task_id)
-        while not task.get('complete'):
-            task = client.get_task(task_id)
-            info('Waiting for results')
-            time.sleep(1)
-
-        # Collecting results
-        info('Obtaining results')
-        results = client.get_results(task_id=task.get('id'))
+        # Organise local centroids into a matrix
+        local_centroids = []
+        for result in results:
+            for local_centroid in result:
+                local_centroids.append(local_centroid)
+        X = np.array(local_centroids)
 
         # Average centroids by running kmeans on local results
-        new_centroids = []
-        for result in results:
-            for centre in result['centroids']:
-                new_centroids.append(centre)
-        X = np.array(new_centroids)
+        # TODO: add other averaging options
         kmeans = KMeans(
             n_clusters=k, random_state=0, n_init='auto',
         ).fit(X)
         new_centroids = kmeans.cluster_centers_
 
-        # Check convergence
+        # Compute the sum of the magnitudes of the centroids differences
+        # between steps. This change in centroids between steps will be used
+        # to evaluate convergence.
         change = 0
         for i in range(k):
             diff = new_centroids[i] - np.array(centroids[i])
             change += np.linalg.norm(diff)
-        info(f'Change: {change}, Iteration: {iteration}')
+        info(f'Iteration: {iteration}, change in centroids: {change}')
 
+        # Re-define the centroids and update iterations counter
         centroids = list(list(centre) for centre in new_centroids)
         iteration += 1
-        if iteration == 300:
-            break
 
     # Final result
     info('Master algorithm complete')
@@ -138,27 +119,46 @@ def master(
 
 def RPC_initialize_centroids_partial(
         data: pd.DataFrame, k: int, columns: list = None
-) -> dict:
+) -> list:
+    """ Initialise global centroids for kmeans
+
+    Parameters
+    ----------
+    data
+        Dataframe with input data
+    k
+        Number of clusters
+    columns
+        Columns to be used for clustering
+
+    Returns
+    -------
+    centroids
+        Initial guess for global centroids
+    """
     # TODO: use a better method to initialize centroids
     info(f'Randomly sample {k} data points to use as initial centroids')
     if columns:
         df = data[columns].sample(k)
     else:
         df = data.sample(k)
+
+    # Organise initial guess for centroids as a list
     centroids = []
     for index, row in df.iterrows():
-        centroids.append(list(row.values))
-    return {'initial_centroids': centroids}
+        centroids.append(row.values.tolist())
+
+    return centroids
 
 
 def RPC_kmeans_partial(
-        data: pd.DataFrame, k: int, centroids: list, columns: list = None
-) -> dict:
+        df: pd.DataFrame, k: int, centroids: list, columns: list = None
+) -> list:
     """ Partial method for federated kmeans
 
     Parameters
     ----------
-    data
+    df
         DataFrame with input data
     k
         Number of clusters to be computed
@@ -169,12 +169,12 @@ def RPC_kmeans_partial(
 
     Returns
     -------
-    results
-        Dictionary with the partial result
+    centroids
+        List with the partial result for centroids
     """
     info('Selecting columns')
     if columns:
-        df = data[columns]
+        df = df[columns]
 
     info('Calculating distance matrix')
     distances = np.zeros([len(df), k])
@@ -190,16 +190,14 @@ def RPC_kmeans_partial(
         j = np.argmin(distances[i])
         membership[i, j] = 1
 
-    info('Generating local cluster centres')
+    info('Generating local cluster centroids')
     centroids = []
     for i in range(k):
         members = membership[:, i]
         dfc = df.iloc[members == 1]
-        center = []
+        centroid = []
         for column in columns:
-            center.append(dfc[column].mean())
-        centroids.append(center)
+            centroid.append(dfc[column].mean())
+        centroids.append(centroid)
 
-    return {
-        'centroids': centroids
-    }
+    return centroids
