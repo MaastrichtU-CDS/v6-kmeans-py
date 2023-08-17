@@ -28,8 +28,8 @@ setup(
     python_requires='>=3.7',
     install_requires=[
         'vantage6-client',
-        'pandas==1.5.3',
-        'scipy==1.11.1',
-        'scikit-learn==1.3.0'
+        'pandas>=1.2.1',
+        'scipy>=1.7.3',
+        'scikit-learn>=1.0.2'
     ]
 )
