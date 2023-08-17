@@ -5,8 +5,6 @@
 We follow the approach introduced by Stallmann and Wilbik (2022),
 but implementing it for classical kmeans.
 """
-import time
-
 import numpy as np
 import pandas as pd
 
