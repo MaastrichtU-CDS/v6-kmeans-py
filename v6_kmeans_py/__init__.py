@@ -52,7 +52,6 @@ def master(
 
     # Initialise k global cluster centres, for now start with k random points
     # drawn from a random data node
-    # TODO: improve centroids initialisation
     info('Initializing k global cluster centres')
     input_ = {
         'method': 'initialize_centroids_partial',
