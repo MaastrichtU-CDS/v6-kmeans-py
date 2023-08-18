@@ -50,14 +50,14 @@ def master(
     ids = [organization.get('id') for organization in organizations
            if not org_ids or organization.get('id') in org_ids]
 
-    # Initialise k global cluster centres, for now start with k random points
-    # drawn from a random data node
+    # Initialise k global cluster centroids, for now start with k random points
+    # drawn from the first data node
     info('Initializing k global cluster centres')
     input_ = {
         'method': 'initialize_centroids_partial',
         'kwargs': {'k': k, 'columns': columns}
     }
-    results = coordinate_task(client, input_, [np.random.choice(ids)])
+    results = coordinate_task(client, input_, ids[:1])
     centroids = results[0]
 
     # The next steps are run until convergence is achieved or the maximum
@@ -87,14 +87,15 @@ def master(
 
         # Average centroids by running kmeans on local results
         # TODO: add other averaging options
-        kmeans = KMeans(
-            n_clusters=k, random_state=0, n_init='auto',
-        ).fit(X)
+        info('Run global averaging for centroids')
+        kmeans = KMeans(n_clusters=k, random_state=0).fit(X)
+        info(f'Kmeans result {kmeans}')
         new_centroids = kmeans.cluster_centers_
 
         # Compute the sum of the magnitudes of the centroids differences
         # between steps. This change in centroids between steps will be used
         # to evaluate convergence.
+        info('Compute change in cluster centroids')
         change = 0
         for i in range(k):
             diff = new_centroids[i] - np.array(centroids[i])
@@ -133,6 +134,9 @@ def RPC_initialize_centroids_partial(
     centroids
         Initial guess for global centroids
     """
+    # Drop rows with NaNs
+    data = data.dropna(how='any')
+
     # TODO: use a better method to initialize centroids
     info(f'Randomly sample {k} data points to use as initial centroids')
     if columns:
@@ -169,6 +173,9 @@ def RPC_kmeans_partial(
     centroids
         List with the partial result for centroids
     """
+    # Drop rows with NaNs
+    df = df.dropna(how='any')
+
     info('Selecting columns')
     if columns:
         df = df[columns]

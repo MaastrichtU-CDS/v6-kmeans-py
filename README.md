@@ -68,7 +68,7 @@ pip install -e .
 python v6_kmeans_py/example.py
 ```
 
-The algorithm was developed and tested with Python 3.10.
+The algorithm was developed and tested with Python 3.7.
 
 ## Acknowledgments
 
