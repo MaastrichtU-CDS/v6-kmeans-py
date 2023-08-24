@@ -21,7 +21,7 @@ setup(
     description='Vantage6 algorithm for kmeans',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    url='https://github.com/aiaragomes/v6-kmeans-py',
+    url='https://github.com/MaastrichtU-CDS/v6-kmeans-py',
     license='MIT License',
     keywords=['Vantage6', 'Federated Algorithms', 'Unsupervised Learning'],
     packages=find_packages(),
