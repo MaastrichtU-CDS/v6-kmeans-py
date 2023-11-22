@@ -35,7 +35,8 @@ input_ = {
             'sepal_length', 'sepal_width', 'petal_length', 'petal_width'
         ],
         'd_init': 'all',        # data nodes to use for centroids initialisation
-        'init_method': 'random' # method for centroids initialisation
+        'init_method': 'random',# method for centroids initialisation
+        'avg_method': 'k-means' # method used to get global centroids
     }
 }
 

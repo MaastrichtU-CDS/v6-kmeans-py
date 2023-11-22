@@ -20,7 +20,8 @@ from v6_kmeans_py.helper import coordinate_task
 def master(
         client, data: pd.DataFrame, k: int, epsilon: int = 0.05,
         max_iter: int = 300, columns: list = None, org_ids: list = None,
-        d_init: str = 'all', init_method: str = 'random'
+        d_init: str = 'all', init_method: str = 'random',
+        avg_method: str = 'k-means'
 ) -> dict:
     """ Master algorithm that coordinates the tasks and performs averaging
 
@@ -44,6 +45,8 @@ def master(
         Which data nodes to use for initialisation ('all' or 'random')
     init_method
         Method to be used for centroids initialisation ('random' or 'k-means++')
+    avg_method
+        Method used to get global centroids ('simple_avg' or 'k-means')
 
     Returns
     -------
@@ -65,6 +68,9 @@ def master(
     if not init_method in ['random', 'k-means++']:
         info(f'Initialisation option {init_method} not available, using random')
         init_method = 'random'
+    if not avg_method in ['simple_avg', 'k-means']:
+        info(f'Initialisation option {avg_method} not available, using k-means')
+        avg_method = 'k-means'
 
     # Initialise k global cluster centroids
     info('Initializing k global cluster centres')
@@ -106,19 +112,24 @@ def master(
         # Send partial task and collect results
         results = coordinate_task(client, input_, ids)
 
-        # Organise local centroids into a matrix
-        local_centroids = []
-        for result in results:
-            for local_centroid in result:
-                local_centroids.append(local_centroid)
-        X = np.array(local_centroids)
-
-        # Average centroids by running kmeans on local results
-        # TODO: add other averaging options
+        # Get global centroids
         info('Run global averaging for centroids')
-        kmeans = KMeans(n_clusters=k, random_state=0).fit(X)
-        info(f'Kmeans result {kmeans}')
-        new_centroids = kmeans.cluster_centers_
+        if avg_method == 'k-means':
+            info(f'Running k-Means on local clusters')
+            local_centroids = [
+                centroid for result in results for centroid in result
+            ]
+            X = np.array(local_centroids)
+            kmeans = KMeans(n_clusters=k, random_state=42).fit(X)
+            new_centroids = kmeans.cluster_centers_
+        else:
+            info(f'Running simple average on local clusters')
+            new_centroids = np.zeros([k, len(columns)])
+            for i in range(len(ids)):
+                for j in range(k):
+                    for p in range(len(columns)):
+                        new_centroids[j, p] += results[i][j][p]
+            new_centroids = new_centroids / len(ids)
 
         # Compute the sum of the magnitudes of the centroids differences
         # between steps. This change in centroids between steps will be used

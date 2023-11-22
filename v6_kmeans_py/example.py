@@ -30,12 +30,13 @@ master_task = client.create_new_task(
             'org_ids': [0, 1],
             'k': 3,
             'epsilon': 0.05,
-            'max_iter': 3,
+            'max_iter': 30,
             'columns': [
                 'sepal_length', 'sepal_width', 'petal_length', 'petal_width'
             ],
             'd_init': 'all',
-            'init_method': 'k-means++'
+            'init_method': 'k-means++',
+            'avg_method': 'k-means'
         }
     },
     organization_ids=[0]
