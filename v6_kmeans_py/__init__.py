@@ -62,13 +62,13 @@ def master(
            if not org_ids or organization.get('id') in org_ids]
 
     # Checking centroids initialisation input parameters
-    if not d_init in ['all', 'random']:
+    if d_init not in ['all', 'random']:
         info(f'Initialisation option {d_init} not available, using all nodes')
         d_init = 'all'
-    if not init_method in ['random', 'k-means++']:
+    if init_method not in ['random', 'k-means++']:
         info(f'Initialisation option {init_method} not available, using random')
         init_method = 'random'
-    if not avg_method in ['simple_avg', 'k-means']:
+    if avg_method not in ['simple_avg', 'k-means']:
         info(f'Initialisation option {avg_method} not available, using k-means')
         avg_method = 'k-means'
 
@@ -115,7 +115,7 @@ def master(
         # Get global centroids
         info('Run global averaging for centroids')
         if avg_method == 'k-means':
-            info(f'Running k-Means on local clusters')
+            info('Running k-Means on local clusters')
             local_centroids = [
                 centroid for result in results for centroid in result
             ]
@@ -123,7 +123,7 @@ def master(
             kmeans = KMeans(n_clusters=k, random_state=42).fit(X)
             new_centroids = kmeans.cluster_centers_
         else:
-            info(f'Running simple average on local clusters')
+            info('Running simple average on local clusters')
             new_centroids = np.zeros([k, len(columns)])
             for i in range(len(ids)):
                 for j in range(k):
