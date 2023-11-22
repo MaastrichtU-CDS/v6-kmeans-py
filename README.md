@@ -27,14 +27,15 @@ input_ = {
     'method': 'master',
     'master': True,
     'kwargs': {
-        'org_ids': [2, 3],  # organisations to run kmeans
-        'k': 3,             # number of clusters to compute
-        'epsilon': 0.05,    # threshold for convergence criterion
-        'max_iter': 300,    # maximum number of iterations to perform
-        'columns': [        # columns to be used for clustering
+        'org_ids': [2, 3],      # organisations to run kmeans
+        'k': 3,                 # number of clusters to compute
+        'epsilon': 0.05,        # threshold for convergence criterion
+        'max_iter': 300,        # maximum number of iterations to perform
+        'columns': [            # columns to be used for clustering
             'sepal_length', 'sepal_width', 'petal_length', 'petal_width'
         ],
-        'd_init': 'all'     # data nodes to use for centroids initialisation
+        'd_init': 'all',        # data nodes to use for centroids initialisation
+        'init_method': 'random' # method for centroids initialisation
     }
 }
 

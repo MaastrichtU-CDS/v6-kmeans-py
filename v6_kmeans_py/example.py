@@ -34,10 +34,11 @@ master_task = client.create_new_task(
             'columns': [
                 'sepal_length', 'sepal_width', 'petal_length', 'petal_width'
             ],
-            'd_init': 'all'
+            'd_init': 'all',
+            'init_method': 'k-means++'
         }
     },
-    organization_ids=[0, 1]
+    organization_ids=[0]
 )
 results = client.get_results(master_task.get('id'))
 print(results)
