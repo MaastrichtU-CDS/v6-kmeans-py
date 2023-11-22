@@ -33,7 +33,8 @@ input_ = {
         'max_iter': 300,    # maximum number of iterations to perform
         'columns': [        # columns to be used for clustering
             'sepal_length', 'sepal_width', 'petal_length', 'petal_width'
-        ]
+        ],
+        'd_init': 'all'     # data nodes to use for centroids initialisation
     }
 }
 

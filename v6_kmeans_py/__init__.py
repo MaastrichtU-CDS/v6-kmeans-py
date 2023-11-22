@@ -5,6 +5,8 @@
 We follow the approach introduced by Stallmann and Wilbik (2022),
 but implementing it for classical kmeans.
 """
+import random
+
 import numpy as np
 import pandas as pd
 
@@ -16,7 +18,8 @@ from v6_kmeans_py.helper import coordinate_task
 
 def master(
         client, data: pd.DataFrame, k: int, epsilon: int = 0.05,
-        max_iter: int = 300, columns: list = None, org_ids: list = None
+        max_iter: int = 300, columns: list = None, org_ids: list = None,
+        d_init: str = 'all'
 ) -> dict:
     """ Master algorithm that coordinates the tasks and performs averaging
 
@@ -36,6 +39,8 @@ def master(
         Columns to be used for clustering
     org_ids
         List with organisation ids to be used
+    d_init
+        Which data nodes to use for initialisation ('all' or 'random')
 
     Returns
     -------
@@ -50,15 +55,25 @@ def master(
     ids = [organization.get('id') for organization in organizations
            if not org_ids or organization.get('id') in org_ids]
 
-    # Initialise k global cluster centroids, for now start with k random points
-    # drawn from the first data node
+    # Initialise k global cluster centroids
     info('Initializing k global cluster centres')
     input_ = {
         'method': 'initialize_centroids_partial',
         'kwargs': {'k': k, 'columns': columns}
     }
-    results = coordinate_task(client, input_, ids[:1])
-    centroids = results[0]
+    if not d_init in ['all', 'random']:
+        info(f'Initialisation option {d_init} not available, using all nodes')
+        d_init = 'all'
+    if d_init == 'all':
+        # Draw from all nodes and then re-draw
+        results = coordinate_task(client, input_, ids)
+        results = [centroid for result in results for centroid in result]
+        centroids = random.sample(results, k)
+    else:
+        # Draw from random data node
+        random_id = [random.choice(ids)]
+        results = coordinate_task(client, input_, random_id)
+        centroids = results[0]
 
     # The next steps are run until convergence is achieved or the maximum
     # number of iterations reached. In order to evaluate convergence,
